@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, FlatList, Image } from "react-native";
+import { StyleSheet, View, Text, ScrollView, FlatList, Image, TouchableOpacity } from "react-native";
 import ThemeLayout from "../../components/layout/ThemeLayout";
 import { getAuth } from "firebase/auth";
 import { useNavigation } from "@react-navigation/native";
 import { db } from "../../src/configs/firebase";
-import { doc, getDoc, onSnapshot, collection, getDocs } from "firebase/firestore";
-
-const renderItem = ({ item }) => (
-	<View>
-		<Image source={{ uri: item?.image }} style={{ width: 150, height: 150, resizeMode: "contain" }} />
-	</View>
-);
+import { doc, getDoc, onSnapshot, collection, getDocs, query, where } from "firebase/firestore";
 
 const Statistic = () => {
 	const auth = getAuth();
@@ -19,6 +13,8 @@ const Statistic = () => {
 	const [resourceBank, setResourceBank] = useState();
 	const [foods, setFoods] = useState();
 	const [medicines, setMedicines] = useState();
+	const [selectedResourceBank, setSelectedResourceBank] = useState();
+	const [error, setError] = useState();
 
 	const getResourceBank = async () => {
 		const docRef = collection(db, "resourceBank");
@@ -29,37 +25,77 @@ const Statistic = () => {
 			console.log("err", err);
 		}
 	};
-
-	const getFoods = async () => {
-		const docRef = collection(db, "foods");
+	const getDonationFood = async () => {
+		const docRef = collection(db, "donations");
 		try {
-			const foods = await getDocs(docRef);
-			setFoods(foods.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+			const donationFood = query(docRef, where("resourceBank", "==", selectedResourceBank.id));
+
+			const getFood = await getDocs(donationFood);
+			const food = getFood.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+			console.log("food", food);
+			setFoods(food);
 		} catch (err) {
 			console.log("err", err);
 		}
 	};
 
-	const getMedicines = async () => {
-		const docRef = collection(db, "medicine");
-		try {
-			const medicines = await getDocs(docRef);
-			setMedicines(medicines.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-		} catch (err) {
-			console.log("err", err);
-		}
-	};
 	useEffect(() => {
 		getResourceBank();
-		getFoods();
-		getMedicines();
 	}, []);
+
+	useEffect(() => {
+		if (selectedResourceBank) {
+			getDonationFood();
+		}
+	}, [selectedResourceBank]);
+
+	const renderItem = ({ item }) => (
+		<TouchableOpacity onPress={() => setSelectedResourceBank(item)}>
+			<Image
+				key={item.id}
+				source={{ uri: item?.image }}
+				style={[
+					item?.id === selectedResourceBank?.id
+						? {
+								borderWidth: 1,
+								borderColor: "#00FE1E",
+								borderRadius: 15,
+						  }
+						: "",
+					{ width: 150, height: 150, resizeMode: "contain" },
+				]}
+			/>
+		</TouchableOpacity>
+	);
+
+	const renderTopResource = ({ item }) => (
+		<ScrollView>
+			<View style={{ marginHorizontal: 50 }}>
+				<View
+					style={{
+						flex: 1,
+						flexDirection: "row",
+						justifyContent: "space-around",
+						marginVertical: 20,
+						borderBottomWidth: 1,
+						paddingVertical: 5,
+					}}>
+					<View>
+						<Text style={{ fontWeight: "normal", fontSize: 16 }}>{item?.donationItem}</Text>
+					</View>
+					<TouchableOpacity>
+						<View>
+							<Text>{item?.quantity}</Text>
+						</View>
+					</TouchableOpacity>
+				</View>
+			</View>
+		</ScrollView>
+	);
 
 	return (
 		<ThemeLayout headerTitle={"Statistic"}>
-			<ScrollView
-				style={{ marginHorizontal: 20 }}
-				contentContainerStyle={{ justifyContent: "space-between", height: "100%" }}>
+			<ScrollView style={{ marginHorizontal: 20 }} contentContainerStyle={{ height: "100%" }}>
 				<View>
 					<View>
 						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Resource Bank</Text>
@@ -73,28 +109,19 @@ const Statistic = () => {
 					/>
 				</View>
 				<View>
-					<View>
-						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Food</Text>
+					<View style={{ marginVertical: 20 }}>
+						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Top Resources</Text>
 					</View>
-					{/* <FlatList
-						data={medicines}
-						renderItem={renderItem}
-						keyExtractor={item => item?.id}
-						horizontal
-						style={{ backgroundColor: "#F6F3F3", borderRadius: 20, padding: 10 }}
-					/> */}
-				</View>
-				<View>
-					<View>
-						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Medicine</Text>
+					<View style={{ marginHorizontal: 50, justifyContent: "space-around", flexDirection: "row" }}>
+						<Text style={{ fontSize: 16, fontWeight: "bold", color: "#000" }}>Item Name</Text>
+						<Text style={{ fontSize: 16, fontWeight: "bold", color: "#000" }}>Quantity</Text>
 					</View>
-					{/* <FlatList
-						data={resourceBank}
-						renderItem={renderItem}
+					<FlatList
+						data={foods}
+						renderItem={renderTopResource}
 						keyExtractor={item => item?.id}
-						horizontal
-						style={{ backgroundColor: "#F6F3F3", borderRadius: 20, padding: 10 }}
-					/> */}
+						// style={{ padding: 10 }}
+					/>
 				</View>
 			</ScrollView>
 		</ThemeLayout>

@@ -19,6 +19,7 @@ import { Formik } from "formik";
 import SelectField from "../../components/fields/SelectField";
 import { Portal, Snackbar, TextInput } from "react-native-paper";
 import Button from "../../components/_common/Button";
+import useAppContext from "../../src/context/useAppContext";
 
 const Dashboard = () => {
 	const auth = getAuth();
@@ -34,9 +35,12 @@ const Dashboard = () => {
 
 	const [donationFood, setDonationFood] = useState();
 	const [donationMedicine, setDonationMedicine] = useState();
+	const [foodAndMedicine, setFoodAndMedicine] = useState();
 
 	const [currentUser, setCurrentUser] = useState();
 	const [selectedResourceBank, setSelectedResourceBank] = useState();
+
+	const { setCart, cart } = useAppContext();
 
 	const getData = async () => {
 		const docRef = doc(db, "users", auth.currentUser.uid);
@@ -55,40 +59,38 @@ const Dashboard = () => {
 	};
 
 	const getDonationFood = async () => {
+		setFoodAndMedicine([]);
 		const docRef = collection(db, "donations");
 		try {
-			const donationFood = query(
-				docRef,
-				where("resourceBank", "==", selectedResourceBank.id),
-				where("donationType", "==", "Food"),
-			);
+			const donationFood = query(docRef, where("resourceBank", "==", selectedResourceBank.id));
+
 			const getFood = await getDocs(donationFood);
-			setDonationFood(
-				getFood.docs.map(doc => ({ id: doc.id, label: doc.data().donationItem, value: doc.data().donationItem })),
-			);
+			const food = getFood.docs.map(doc => ({
+				id: doc.id,
+				label: doc.data().donationItem,
+				value: doc.id,
+				resourceBank: doc.data().resourceBank,
+				resourceBankName: doc.data()?.resourceBankName,
+			}));
+
+			setFoodAndMedicine(food);
 		} catch (err) {
 			setError(err);
 		}
 	};
 
-	const getDonationMedicine = async () => {
+	const getAllDonation = async () => {
 		const docRef = collection(db, "donations");
 		try {
-			const donationMedicine = query(
-				docRef,
-				where("resourceBank", "==", selectedResourceBank.id),
-				where("donationType", "==", "Medicine"),
-			);
-			const getMedicine = await getDocs(donationMedicine);
-			setDonationMedicine(
-				getMedicine.docs.map(doc => ({ id: doc.id, label: doc.data().donationItem, value: doc.data().donationItem })),
-			);
+			const donationFood = query(docRef, where("resourceBank", "==", selectedResourceBank.id));
+
+			const getFood = await getDocs(donationFood);
+			const food = getFood.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+			setFoods(food);
 		} catch (err) {
 			setError(err);
 		}
 	};
-
-	console.log("donationMedicine", donationMedicine);
 
 	const renderItem = ({ item }) => (
 		<TouchableOpacity onPress={() => setSelectedResourceBank(item)}>
@@ -113,49 +115,60 @@ const Dashboard = () => {
 		}
 	};
 
-	// const getFoods = async () => {
-	// 	const docRef = collection(db, "foods");
-	// 	try {
-	// 		const foods = await getDocs(docRef);
-	// 		setFoods(foods.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-	// 	} catch (err) {
-	// 		console.log("err", err);
-	// 	}
-	// };
-
-	// const getMedicines = async () => {
-	// 	const docRef = collection(db, "medicine");
-	// 	try {
-	// 		const medicines = await getDocs(docRef);
-	// 		setMedicines(medicines.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-	// 	} catch (err) {
-	// 		console.log("err", err);
-	// 	}
-	// };
 	useEffect(() => {
 		getResourceBank();
-		// getFoods();
-		// getMedicines();
 		getData();
 	}, []);
 
 	useEffect(() => {
 		if (selectedResourceBank) {
 			getDonationFood();
-			getDonationMedicine();
+			getAllDonation();
 		}
 	}, [selectedResourceBank]);
 
-	return (
-		<ThemeLayout headerTitle={"Welcome to Dar!"}>
-			<ScrollView style={{ marginHorizontal: 20 }} contentContainerStyle={{ height: "100%" }}>
-				<KeyboardAvoidingView behavior="padding">
-					{/* <View>
+	const addToCart = values => {
+		console.log("values", values);
+		const donation = foodAndMedicine.find(fm => fm.id === values.food);
+		console.log("fm", foodAndMedicine);
+		console.log("donation", donation);
+		setCart([...cart, donation]);
+	};
+
+	const renderTopResource = ({ item }) => (
+		<ScrollView>
+			<View style={{ marginHorizontal: 50 }}>
+				<View
+					style={{
+						flex: 1,
+						flexDirection: "row",
+						justifyContent: "space-around",
+						marginVertical: 20,
+						borderBottomWidth: 1,
+						paddingVertical: 5,
+					}}>
 					<View>
-						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Food</Text>
+						<Text style={{ fontWeight: "normal", fontSize: 16 }}>{item?.donationItem}</Text>
+					</View>
+					<TouchableOpacity>
+						<View>
+							<Text>{item?.quantity}</Text>
+						</View>
+					</TouchableOpacity>
+				</View>
+			</View>
+		</ScrollView>
+	);
+
+	const renderDashboardResourceBank = () => {
+		return (
+			<ScrollView style={{ marginHorizontal: 20 }} contentContainerStyle={{ height: "100%" }}>
+				<View>
+					<View>
+						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Resource Bank</Text>
 					</View>
 					<FlatList
-						data={foods}
+						data={resourceBank}
 						renderItem={renderItem}
 						keyExtractor={item => item?.id}
 						horizontal
@@ -163,21 +176,29 @@ const Dashboard = () => {
 					/>
 				</View>
 				<View>
-					<View>
-						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Medicine</Text>
+					<View style={{ marginVertical: 20 }}>
+						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Top Resources</Text>
+					</View>
+					<View style={{ marginHorizontal: 50, justifyContent: "space-around", flexDirection: "row" }}>
+						<Text style={{ fontSize: 16, fontWeight: "bold", color: "#000" }}>Item Name</Text>
+						<Text style={{ fontSize: 16, fontWeight: "bold", color: "#000" }}>Quantity</Text>
 					</View>
 					<FlatList
-						data={medicines}
-						renderItem={renderItem}
+						data={foods}
+						renderItem={renderTopResource}
 						keyExtractor={item => item?.id}
-						horizontal
-						style={{ backgroundColor: "#F6F3F3", borderRadius: 20, padding: 10 }}
+						// style={{ padding: 10 }}
 					/>
-				</View> */}
+				</View>
+			</ScrollView>
+		);
+	};
+
+	const renderDashboardDonor = () => {
+		return (
+			<ScrollView style={{ marginHorizontal: 20 }} contentContainerStyle={{ height: "100%" }}>
+				<KeyboardAvoidingView behavior="padding">
 					<View>
-						{/* <View>
-						<Text style={{ color: "#000000", fontSize: 19, fontWeight: "bold" }}>Resource Bank</Text>
-					</View> */}
 						<FlatList
 							data={resourceBank}
 							renderItem={renderItem}
@@ -189,9 +210,11 @@ const Dashboard = () => {
 					<Formik
 						initialValues={{
 							food: "",
-							medicine: "",
+							// medicine: "",
 						}}
-						onSubmit={values => {}}>
+						onSubmit={values => {
+							addToCart(values);
+						}}>
 						{({ handleSubmit }) => (
 							<>
 								<ScrollView>
@@ -204,15 +227,15 @@ const Dashboard = () => {
 										<Text style={{ fontWeight: "bold", fontSize: 15 }}>Available Food and Medicine</Text>
 									</View>
 									<View style={{ marginBottom: 20 }}>
-										<Text style={{ paddingHorizontal: 20, fontSize: 16 }}>Food</Text>
+										{/* <Text style={{ paddingHorizontal: 20, fontSize: 16 }}>Food</Text> */}
 										<SelectField
 											name="food"
-											items={donationFood}
+											items={foodAndMedicine}
 											onValueChange={e => setDonationFoodVal(e)}
 											style={styles.textInput}
 										/>
 									</View>
-									<View style={{ marginBottom: 20 }}>
+									{/* <View style={{ marginBottom: 20 }}>
 										<Text style={{ paddingHorizontal: 20, fontSize: 16 }}>Medicine</Text>
 										<SelectField
 											name="medicine"
@@ -220,9 +243,9 @@ const Dashboard = () => {
 											onValueChange={e => setDonationMedicineVal(e)}
 											style={styles.textInput}
 										/>
-									</View>
+									</View> */}
 									<View style={{ alignSelf: "center" }}>
-										<Button style={styles.button}>
+										<Button style={styles.button} onPress={handleSubmit}>
 											<Text style={[styles.buttonText, { fontWeight: "bold" }]}>Submit</Text>
 										</Button>
 									</View>
@@ -247,6 +270,12 @@ const Dashboard = () => {
 					</Formik>
 				</KeyboardAvoidingView>
 			</ScrollView>
+		);
+	};
+
+	return (
+		<ThemeLayout headerTitle={"Welcome to Dar!"}>
+			{currentUser?.role === "donor" ? renderDashboardDonor() : renderDashboardResourceBank()}
 		</ThemeLayout>
 	);
 };

@@ -6,12 +6,15 @@ import { getAuth, signOut } from "firebase/auth";
 import { useNavigation } from "@react-navigation/native";
 import { db } from "../../src/configs/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import useAppContext from "../../src/context/useAppContext";
 
 const Profile = () => {
 	const auth = getAuth();
 	const navigation = useNavigation();
 
 	const [currentUser, setCurrentUser] = useState();
+
+	const { setCart, cart } = useAppContext();
 
 	const getData = async () => {
 		const docRef = doc(db, "users", auth.currentUser.uid);
@@ -65,6 +68,7 @@ const Profile = () => {
 						onPress={() =>
 							signOut(auth)
 								.then(() => {
+									setCart([]);
 									navigation.replace("Login");
 								})
 								.catch(error => {

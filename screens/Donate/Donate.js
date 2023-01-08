@@ -86,6 +86,7 @@ const Donate = () => {
 			try {
 				const newDonation = await addDoc(collection(db, "donations"), {
 					resourceBank: selectedResourceBank.id,
+					resourceBankName: selectedResourceBank.name,
 					donationItem: values.donationItem,
 					donationType: values.donationType,
 					expirationDate: expirationDate ? expirationDate : new Date().toISOString().slice(0, 10),

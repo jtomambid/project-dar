@@ -5,4 +5,8 @@ const getOptionValue = field => {
 	}));
 };
 
-export { getOptionValue };
+const getKeyValue = ({ obj, key }) => {
+	return obj[key];
+};
+
+export { getOptionValue, getKeyValue };

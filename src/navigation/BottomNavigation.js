@@ -13,6 +13,7 @@ import Settings from "../../screens/Settings";
 import { db } from "../../src/configs/firebase";
 import { doc, getDoc, onSnapshot, collection, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import Cart from "../../screens/Cart";
 
 const BottomTab = createBottomTabNavigator();
 
@@ -183,6 +184,14 @@ export default function BottomNavigation() {
 			<BottomTab.Screen
 				name="Settings"
 				component={Settings}
+				options={{
+					tabBarVisible: false,
+					tabBarButton: () => null,
+				}}
+			/>
+			<BottomTab.Screen
+				name="Cart"
+				component={Cart}
 				options={{
 					tabBarVisible: false,
 					tabBarButton: () => null,
